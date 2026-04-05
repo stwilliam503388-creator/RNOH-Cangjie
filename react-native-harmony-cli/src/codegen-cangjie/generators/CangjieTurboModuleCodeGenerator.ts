@@ -159,6 +159,8 @@ function getArrayElementKind(
 
 /**
  * 获取数组元素在 Cangjie 侧的类型描述。
+ * 注意：该函数仅在 elementKind !== 'unknown' 时调用（调用方已做判断），
+ * default 分支理论上不可达，但为防止未来扩展时出现遗漏，返回 JsonValue。
  */
 function getArrayElementCangjieType(kind: ArrayElementKind): string {
   switch (kind) {
@@ -171,7 +173,8 @@ function getArrayElementCangjieType(kind: ArrayElementKind): string {
     case 'number':
       return 'Float64';
     default:
-      return 'String';
+      // 理论上不可达（调用方已过滤 unknown），返回 JsonValue 以确保代码合法。
+      return 'JsonValue';
   }
 }
 
@@ -700,6 +703,8 @@ function buildArrayJsonLines(
       lines.push(`  ${arrayVarName}.add(JsonFloat(${elementName}))`);
       break;
     default:
+      // buildArrayJsonLines 仅在 elementKind !== 'unknown' 时调用，此分支理论上不可达。
+      // 保守起见，使用 toString() 将元素转为字符串，避免完全丢失数据。
       lines.push(`  ${arrayVarName}.add(JsonString(${elementName}.toString()))`);
       break;
   }
