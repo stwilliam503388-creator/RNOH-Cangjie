@@ -8,16 +8,33 @@
 import { TypeAnnotation } from '../../codegen/core/TypeAnnotationToTS';
 
 /**
+ * RN Codegen 在运行时会为含默认值的参数生成 WithDefaultTypeAnnotation，
+ * 但该类型未包含在 @react-native/codegen 的 TypeScript 类型声明中。
+ * 这里在本地声明，以便编译期可以正确处理。
+ */
+type WithDefaultTypeAnnotation = {
+  readonly type: 'WithDefaultTypeAnnotation';
+  readonly typeAnnotation: TypeAnnotation;
+  readonly default: string | boolean | number;
+};
+
+/**
+ * 本地扩展的 TypeAnnotation 联合类型，包含 WithDefaultTypeAnnotation。
+ * 用于处理带默认值的 TurboModule 参数。
+ */
+export type CjTypeAnnotation = TypeAnnotation | WithDefaultTypeAnnotation;
+
+/**
  * 将 RN Codegen 的类型注解转换为 Cangjie 侧的类型字符串。
  * 主要用于生成 TurboModule 方法签名与桥接声明。
  */
 export class TypeAnnotationToCangjie {
-  constructor(private aliasMap?: Record<string, TypeAnnotation>) {}
+  constructor(private aliasMap?: Record<string, CjTypeAnnotation>) {}
 
   /**
    * 数组元素允许映射到 Cangjie 的基础类型，超出范围则交由 JsonValue 统一承载。
    */
-  private convertArrayElement(typeAnnotation: TypeAnnotation): string | null {
+  private convertArrayElement(typeAnnotation: CjTypeAnnotation): string | null {
     switch (typeAnnotation.type) {
       case 'BooleanTypeAnnotation':
         return 'Bool';
@@ -43,6 +60,7 @@ export class TypeAnnotationToCangjie {
         return alias ? this.convertArrayElement(alias) : null;
       }
       case 'WithDefaultTypeAnnotation':
+        // 带默认值的参数展开后按内部类型处理。
         return this.convertArrayElement(typeAnnotation.typeAnnotation);
       default:
         // 复杂对象/嵌套数组在数组场景中交由 JsonValue 处理。
@@ -54,9 +72,10 @@ export class TypeAnnotationToCangjie {
    * 将类型注解转换为 Cangjie 参数类型。
    * 缺省时返回 JsonValue，确保复杂类型仍可被业务层接管。
    */
-  convert(typeAnnotation: TypeAnnotation | undefined): string {
+  convert(typeAnnotation: CjTypeAnnotation | undefined): string {
     if (!typeAnnotation) {
-      return 'String';
+      // 无类型注解时默认为 JsonValue，避免生成无效类型。
+      return 'JsonValue';
     }
     switch (typeAnnotation.type) {
       case 'BooleanTypeAnnotation':
@@ -75,6 +94,7 @@ export class TypeAnnotationToCangjie {
       case 'Int32EnumTypeAnnotation':
         return 'Int32';
       case 'EnumDeclaration':
+        // 枚举类型使用其类型别名名称（对应生成代码中的 type EnumName = Int32/String）。
         return typeAnnotation.name;
       case 'NullableTypeAnnotation':
         return `?${this.convert(typeAnnotation.typeAnnotation)}`;
@@ -86,6 +106,7 @@ export class TypeAnnotationToCangjie {
         return elementType ? `Array<${elementType}>` : 'JsonValue';
       }
       case 'WithDefaultTypeAnnotation':
+        // 带默认值的参数展开内层类型，让调用方决定是否添加 ?。
         return this.convert(typeAnnotation.typeAnnotation);
       case 'TypeAliasTypeAnnotation': {
         if (typeAnnotation.name === 'int32' || typeAnnotation.name === 'Int32') {
@@ -99,6 +120,7 @@ export class TypeAnnotationToCangjie {
         if (typeAnnotation.name === 'RootTag') {
           return 'Int32';
         }
+        // 其他保留类型无法精确映射，统一使用 JsonValue。
         return 'JsonValue';
       case 'ReservedPropTypeAnnotation':
       case 'ObjectTypeAnnotation':
@@ -106,27 +128,34 @@ export class TypeAnnotationToCangjie {
       case 'GenericObjectTypeAnnotation':
       case 'MixedTypeAnnotation':
       case 'FunctionTypeAnnotation':
-        // 复杂类型统一使用 JsonValue，占位交由业务层自行解析。
+        // 复杂类型（自定义对象、联合类型、函数）统一使用 JsonValue，由业务层自行解析。
         return 'JsonValue';
       case 'PromiseTypeAnnotation':
-        return this.convert(typeAnnotation.elementType);
+        // Promise 类型取内部 elementType；无 elementType 时为 void。
+        return typeAnnotation.elementType
+          ? this.convert(typeAnnotation.elementType)
+          : 'Unit';
       case 'VoidTypeAnnotation':
         return 'Unit';
       default:
+        // 所有未知/未来新增类型统一降级为 JsonValue，保证代码可编译。
         return 'JsonValue';
     }
   }
 
   /**
    * 将返回类型注解转换为 Cangjie 类型。
-   * Promise 返回值会直接取内部 elementType。
+   * Promise 返回值会直接取内部 elementType；无类型时默认为 Unit。
    */
-  convertReturnType(typeAnnotation: TypeAnnotation | undefined): string {
+  convertReturnType(typeAnnotation: CjTypeAnnotation | undefined): string {
     if (!typeAnnotation) {
       return 'Unit';
     }
     if (typeAnnotation.type === 'PromiseTypeAnnotation') {
-      return this.convert(typeAnnotation.elementType);
+      // Promise<void> 没有 elementType，直接返回 Unit。
+      return typeAnnotation.elementType
+        ? this.convert(typeAnnotation.elementType)
+        : 'Unit';
     }
     if (typeAnnotation.type === 'VoidTypeAnnotation') {
       return 'Unit';

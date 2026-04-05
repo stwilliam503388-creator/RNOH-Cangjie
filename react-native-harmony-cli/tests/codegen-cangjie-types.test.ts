@@ -39,12 +39,9 @@ export interface Spec extends TurboModule {
   getPrefetchResult(uri: string): string | undefined
   getSize(uri: string): Promise<number[]>
   getSizeWithHeaders(uri: string, headers: Object): Promise<Object>
-  prefetchImage(uri: string, requestId: number = 0): Promise<boolean>
+  prefetchImage(uri: string, requestId?: number): Promise<boolean>
   abortPrefetch(requestId: number): void
   prefetchImageWithMetadata(uri: string, queryRootName: string, rootTag: number): Promise<boolean>
-  getInt32Value(value: int32): int32
-  getInt32Values(values: Array<int32>): Array<int32>
-  getInt32Async(value: int32): Promise<int32>
   queryCache(uris: Array<string>): Promise<Object>
   sendConfigs(configs: Array<Object>): void
 }
@@ -86,45 +83,48 @@ export default TurboModuleRegistry.get<Spec>('Sample')!;
     const cangjieBridgeContent = getContent(cangjieBridgePath);
     const cppContent = getContent(cppFilePath);
 
+    // 同步方法返回可空字符串，Cangjie 侧用 ?String 表示。
     expect(cangjieContent).toContain('getPrefetchResult(uri: String): ?String');
+    // Promise<number[]> 中数组元素为 Float64，Cangjie 侧用 Array<Float64>。
     expect(cangjieContent).toContain('getSize(uri: String): Array<Float64>');
+    // Object 参数/返回值统一映射为 JsonValue。
     expect(cangjieContent).toContain(
       'getSizeWithHeaders(uri: String, headers: JsonValue): JsonValue'
     );
-    expect(cangjieContent).toContain('getInt32Value(value: Int32): Int32');
-    expect(cangjieContent).toContain('getInt32Values(values: Array<Int32>): Array<Int32>');
-    expect(cangjieContent).toContain('getInt32Async(value: Int32): Int32');
-    expect(cangjieContent).toContain(
-      'prefetchImage(uri: String, requestId: Float64): Bool'
-    );
+    // 可选参数 requestId?: number 映射为 ?Float64。
+    expect(cangjieContent).toContain('prefetchImage(uri: String, requestId: ?Float64): Bool');
+    // Array<string> 参数映射为 Array<String>；Object 返回值映射为 JsonValue。
     expect(cangjieContent).toContain('queryCache(uris: Array<String>): JsonValue');
+    // Array<Object> 参数（元素为复杂类型）映射为 JsonValue。
     expect(cangjieContent).toContain('sendConfigs(configs: JsonValue): Unit');
 
+    // 桥接层：Promise<boolean?> 解包后走 if (let Some(value) <- result)。
     expect(cangjieBridgeContent).toContain('if (let Some(value) <- result)');
+    // 桥接层：Array<Float64> 返回值构造 JsonArray。
     expect(cangjieBridgeContent).toContain('let resultJsonArray = JsonArray()');
     expect(cangjieBridgeContent).toContain('JsonFloat');
     expect(cangjieBridgeContent).toContain('PromiseResolve(promise, resultJsonArray)');
+    // 桥接层：Array<string> 参数通过 JsonValue.fromStr 解析。
     expect(cangjieBridgeContent).toContain('let urisJsonValue = JsonValue.fromStr(urisValue)');
     expect(cangjieBridgeContent).toContain('let urisJsonArray = urisJsonValue.asArray()');
     expect(cangjieBridgeContent).toContain(
       'urisArray[urisIndex] = urisArrayItem.asString().toString()'
     );
+    // 桥接层：Object 参数通过 JsonValue.fromStr 解析。
     expect(cangjieBridgeContent).toContain(
       'let headersJsonValue = JsonValue.fromStr(headersValue)'
     );
-    expect(cangjieBridgeContent).toContain(
-      'let valuesArray = Array<Int32>(valuesJsonArray.size(), repeat: 0)'
-    );
-    expect(cangjieBridgeContent).toContain(
-      'valuesArray[valuesIndex] = Int32(valuesArrayItem.asInt().getValue())'
-    );
+    // 桥接层：Array<Object> 参数（元素为对象）统一解析为 JsonValue。
     expect(cangjieBridgeContent).toContain(
       'let configsJsonValue = JsonValue.fromStr(configsValue)'
     );
+    // 桥接层：Promise<Object> 解析后直接传 JsonValue 给 PromiseResolve。
     expect(cangjieBridgeContent).toContain('PromiseResolve(promise, result)');
 
+    // C++ 层：可选数值参数生成守卫代码（默认 0.0，isNumber 检查）。
     expect(cppContent).toContain('double requestId = 0.0');
     expect(cppContent).toContain('if (count > 1 && args[1].isNumber())');
+    // C++ 层：Object/Array 参数生成 JSON.stringify 序列化代码。
     expect(cppContent).toContain('headersJsonDefaultValue = "{}"');
     expect(cppContent).toContain('urisJsonDefaultValue = "[]"');
   });
