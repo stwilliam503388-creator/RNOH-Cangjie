@@ -3,5 +3,6 @@
   "exclude": [
     "tests",
     "**/*.test.ts",
+    "src/codegen-cangjie/sample"
   ]
 }

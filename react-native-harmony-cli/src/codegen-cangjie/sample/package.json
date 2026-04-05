@@ -1,0 +1,19 @@
+{
+  "name": "cangjie-codegen-sample",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "codegen": "node ./run-codegen.js"
+  },
+  "harmony": {
+    "alias": "sample",
+    "codegenConfig": [
+      {
+        "version": 1,
+        "specPaths": [
+          "./specs"
+        ]
+      }
+    ]
+  }
+}
