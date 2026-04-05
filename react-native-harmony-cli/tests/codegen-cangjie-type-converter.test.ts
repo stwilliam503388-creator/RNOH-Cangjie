@@ -238,16 +238,14 @@ describe('TypeAnnotationToCangjie unit tests', () => {
     expect(converter.convert({
       type: 'StringEnumTypeAnnotation',
       values: [{ name: 'Active' }, { name: 'Inactive' }],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any)).toBe('String');
+    } as unknown as CjTypeAnnotation)).toBe('String');
   });
 
   it('maps Int32EnumTypeAnnotation to Int32', () => {
     expect(converter.convert({
       type: 'Int32EnumTypeAnnotation',
       values: [{ name: 'Zero', value: 0 }, { name: 'One', value: 1 }],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any)).toBe('Int32');
+    } as unknown as CjTypeAnnotation)).toBe('Int32');
   });
 
   it('maps EnumDeclaration to its declared name', () => {
@@ -256,8 +254,7 @@ describe('TypeAnnotationToCangjie unit tests', () => {
       type: 'EnumDeclaration',
       name: 'StatusKind',
       members: [],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any)).toBe('StatusKind');
+    } as unknown as CjTypeAnnotation)).toBe('StatusKind');
   });
 
   // ===== 更多可空类型 =====
@@ -329,8 +326,7 @@ describe('TypeAnnotationToCangjie unit tests', () => {
     expect(converter.convert({
       type: 'ArrayTypeAnnotation',
       elementType: { type: 'StringEnumTypeAnnotation', values: [] },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any)).toBe('Array<String>');
+    } as unknown as CjTypeAnnotation)).toBe('Array<String>');
   });
 
   it('maps Array<Int32EnumTypeAnnotation> to Array<Int32>', () => {
@@ -338,8 +334,7 @@ describe('TypeAnnotationToCangjie unit tests', () => {
     expect(converter.convert({
       type: 'ArrayTypeAnnotation',
       elementType: { type: 'Int32EnumTypeAnnotation', values: [] },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any)).toBe('Array<Int32>');
+    } as unknown as CjTypeAnnotation)).toBe('Array<Int32>');
   });
 
   it('maps Array<Nullable<String>> to Array<?String>', () => {
@@ -396,9 +391,8 @@ describe('TypeAnnotationToCangjie unit tests', () => {
     // 组件属性保留类型（如 BackgroundColor）在 TurboModule 上下文中统一降级为 JsonValue。
     expect(converter.convert({
       type: 'ReservedPropTypeAnnotation',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       name: 'BackgroundColorProp',
-    } as any)).toBe('JsonValue');
+    } as unknown as CjTypeAnnotation)).toBe('JsonValue');
   });
 
   // ===== 更多 TypeAlias aliasMap 解析 =====

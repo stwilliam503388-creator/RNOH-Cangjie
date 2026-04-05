@@ -257,6 +257,8 @@ export default TurboModuleRegistry.get<Spec>('Sample')!;
     // bridge.cj：@C 函数签名中参数名称和类型均为 Bool，不是 CString。
     expect(bridgeContent).toContain('enabled: Bool');
     expect(bridgeContent).toContain('flag: Bool');
+    // bridge.cj：Bool 值直接传入 module 方法，无需 JSON 解析。
+    expect(bridgeContent).toContain('module.setEnabled(enabled)');
     // 桥接层不应为 boolean 参数生成 JsonValue.fromStr。
     expect(bridgeContent).not.toContain('let enabledJsonValue = JsonValue.fromStr');
     // C++ 层：bool 参数直接通过 getBool() 读取。
